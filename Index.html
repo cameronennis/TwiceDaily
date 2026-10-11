@@ -1,0 +1,1473 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Daily Log</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#1C1B1F;
+    --ink-soft:#26242C;
+    --ink-soft-2:#2E2C35;
+    --paper:#F4F2ED;
+    --paper-dim:#A6A3A0;
+    --dawn:#E8934A;
+    --dawn-glow:#FFD9A0;
+    --dusk:#7C8CE8;
+    --dusk-glow:#C7CDFA;
+    --done:#5FAE7A;
+    --line: rgba(244,242,237,0.14);
+    --accent: var(--dawn);
+    --accent-glow: var(--dawn-glow);
+    --radius: 18px;
+    --vvh: 100dvh;
+  }
+  [data-mode="evening"]{
+    --accent: var(--dusk);
+    --accent-glow: var(--dusk-glow);
+  }
+  *{ box-sizing:border-box; }
+  html,body{ margin:0; padding:0; height:100%; }
+  body{
+    min-height: var(--vvh, 100dvh);
+    height: var(--vvh, 100dvh);
+    background: var(--ink);
+    background: radial-gradient(circle at 50% -10%, color-mix(in srgb, var(--accent) 16%, var(--ink)) 0%, var(--ink) 55%);
+    color: var(--paper);
+    font-family:'Inter', sans-serif;
+    transition: background 0.6s ease;
+    -webkit-tap-highlight-color: transparent;
+    overflow-y:auto;
+  }
+  @media (prefers-reduced-motion: reduce){
+    *{ transition:none !important; animation:none !important; }
+  }
+  button{ font-family:inherit; }
+  #app{
+    max-width:440px;
+    margin:0 auto;
+    min-height: var(--vvh, 100dvh);
+    padding: 28px 20px 40px;
+    display:flex;
+    flex-direction:column;
+  }
+  :focus-visible{ outline:2px solid var(--accent); outline-offset:2px; }
+
+  /* ---------- Home view ---------- */
+  .date-center{ position:relative; text-align:center; margin-bottom:2px; }
+  .date-row{
+    background:none; border:none; padding:0; cursor:pointer; color:inherit;
+  }
+  .date-btn{
+    display:inline-block; color:inherit;
+    font-family:'Fraunces', serif; font-size:28px; font-weight:500;
+    padding:6px 14px; line-height:1.15;
+  }
+
+  /* Custom calendar dropdown — same markup/behavior on phone and laptop */
+  .calendar-popover{
+    position:absolute; top:100%; left:50%; transform:translateX(-50%);
+    margin-top:8px; z-index:40; width:272px;
+    background: var(--ink-soft); border:1px solid var(--line); border-radius:16px;
+    padding:14px; box-shadow: 0 14px 34px rgba(0,0,0,0.45);
+    text-align:left;
+  }
+  .cal-header{ display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; }
+  .cal-month-label{ font-family:'IBM Plex Mono',monospace; font-size:12.5px; }
+  .cal-nav{
+    background:none; border:none; color:var(--paper); cursor:pointer;
+    width:26px; height:26px; display:flex; align-items:center; justify-content:center;
+    border-radius:8px; padding:0;
+  }
+  .cal-nav:hover:not(:disabled){ background: rgba(244,242,237,0.08); }
+  .cal-nav svg{ width:16px; height:16px; }
+  .cal-nav:disabled{ opacity:0.25; cursor:default; }
+  .cal-weekdays{ display:grid; grid-template-columns: repeat(7,1fr); margin-bottom:2px; }
+  .cal-weekdays span{
+    font-family:'IBM Plex Mono',monospace; font-size:10px; color:var(--paper-dim);
+    text-align:center; display:block;
+  }
+  .cal-grid{ display:grid; grid-template-columns: repeat(7,1fr); gap:2px; }
+  .cal-cell{
+    aspect-ratio:1; border:none; background:none; color:var(--paper);
+    font-family:'Inter',sans-serif; font-size:12.5px; border-radius:8px; cursor:pointer;
+    display:flex; align-items:center; justify-content:center; padding:0;
+  }
+  .cal-cell.empty{ cursor:default; }
+  .cal-cell:hover:not(:disabled):not(.empty){ background: rgba(244,242,237,0.08); }
+  .cal-cell.selected{ background: var(--accent); color: var(--ink); font-weight:600; }
+  .cal-cell.is-today:not(.selected){ box-shadow: inset 0 0 0 1.5px var(--accent); }
+  .cal-cell:disabled{ color: var(--paper-dim); opacity:0.3; cursor:default; }
+  .cal-today-link{
+    display:block; width:100%; text-align:center; margin-top:10px;
+    background:none; border:none; color:var(--accent); font-family:'IBM Plex Mono',monospace;
+    font-size:11px; cursor:pointer; padding:6px;
+  }
+
+  .tz-row{
+    display:flex; align-items:center; justify-content:center; gap:8px;
+    margin-bottom: 16px;
+  }
+  .google-row{
+    display:flex; align-items:center; justify-content:center; gap:8px;
+    flex-wrap:wrap; margin: 0 0 16px;
+  }
+  .google-chip{
+    font-family:'IBM Plex Mono', monospace; font-size:10.5px;
+    color: var(--paper-dim); background: rgba(244,242,237,0.06);
+    border:1px solid var(--line); border-radius:20px; padding:6px 12px;
+    cursor:pointer; max-width:220px; overflow:hidden; text-overflow:ellipsis;
+    white-space:nowrap;
+  }
+  .google-chip.connected{ color: var(--done); border-color: var(--done); }
+  .night-note{
+    display:flex; align-items:center; justify-content:center; gap:7px;
+    font-family:'IBM Plex Mono', monospace; font-size:11px; color:var(--paper-dim);
+    background: rgba(244,242,237,0.06); border:1px solid var(--line);
+    border-radius:20px; padding:7px 14px; margin: 0 0 22px;
+    text-align:center;
+  }
+  .night-note svg{ width:13px; height:13px; flex-shrink:0; }
+  .tz-label{
+    font-family:'IBM Plex Mono', monospace; font-size:11px;
+    color:var(--paper-dim); letter-spacing:0.03em;
+  }
+  .today-pill{
+    font-family:'IBM Plex Mono', monospace; font-size:11px;
+    color: var(--ink); background: var(--accent);
+
+    border:none; border-radius:20px; padding:3px 10px; cursor:pointer;
+  }
+
+  .sync-indicator{
+    position:fixed; top:14px; right:14px; z-index:60;
+    display:flex; align-items:center; gap:7px;
+    background: var(--ink-soft); border:1px solid var(--line);
+    border-radius:20px; padding:6px 12px;
+    font-family:'IBM Plex Mono', monospace; font-size:11px; color:var(--paper-dim);
+    opacity:0; transform:translateY(-6px); pointer-events:none;
+    transition: opacity 0.2s ease, transform 0.2s ease;
+  }
+  .sync-indicator.visible{ opacity:1; transform:translateY(0); }
+  .sync-indicator.error{ color:#E8827A; border-color:#E8827A; }
+  .sync-indicator.error .sync-dot{ background:#E8827A; animation:none; }
+  .sync-dot{
+    width:6px; height:6px; border-radius:50%; background: var(--accent);
+    animation: sync-pulse 1s ease-in-out infinite;
+  }
+  @keyframes sync-pulse{ 0%, 100%{ opacity:1; } 50%{ opacity:0.3; } }
+
+
+  .big-btn{
+    display:flex; align-items:center; justify-content:space-between;
+    width:100%; padding:22px 22px; margin-bottom:14px;
+    border-radius: var(--radius);
+    border: 1px solid var(--line);
+    background: var(--ink-soft);
+    color: var(--paper);
+    cursor:pointer;
+    text-align:left;
+  }
+  .big-btn.done{ border-color: var(--done); }
+  .big-btn .label-col{ display:flex; flex-direction:column; gap:4px; }
+  .big-btn .title{ font-family:'Fraunces', serif; font-size:22px; }
+  .big-btn .progress{ font-family:'IBM Plex Mono',monospace; font-size:12px; color:var(--paper-dim); }
+  .big-btn.morning .title{ color: var(--dawn); }
+  .big-btn.evening .title{ color: var(--dusk); }
+  .big-btn .chev{ color: var(--paper-dim); }
+
+  /* ---------- Section view ---------- */
+  .section-header{
+    display:flex; align-items:center; gap:14px; margin-bottom:22px;
+  }
+  .back-btn{
+    background:none; border:none; color:var(--paper); cursor:pointer;
+    display:flex; align-items:center; justify-content:center;
+    width:34px; height:34px; border-radius:10px;
+  }
+  .back-btn:active{ background: var(--ink-soft); }
+  .section-header .titles{ display:flex; flex-direction:column; }
+  .section-header .title{ font-family:'Fraunces', serif; font-size:24px; }
+  .section-header .subtitle{ font-family:'IBM Plex Mono',monospace; font-size:11px; color:var(--paper-dim); }
+
+  .options-grid{
+    display:grid; grid-template-columns: repeat(2, 1fr); gap:14px;
+  }
+  .tile{
+    border-radius:16px; border:1.5px solid var(--line); background:var(--ink-soft);
+    padding:20px 12px 16px; display:flex; flex-direction:column; align-items:center; gap:10px;
+    cursor:pointer;
+  }
+  .tile:active{ background: var(--ink-soft-2); }
+  .tile.done{ border-color: var(--done); }
+  .tile .icon-wrap{
+    width:44px; height:44px; border-radius:50%;
+    display:flex; align-items:center; justify-content:center;
+    background: rgba(244,242,237,0.06);
+  }
+  .tile .icon-wrap svg{ width:22px; height:22px; color: var(--accent); }
+  .tile.done .icon-wrap svg{ color: var(--done); }
+  .tile .label{ font-size:13.5px; text-align:center; line-height:1.25; }
+  .tile .status{
+    font-family:'IBM Plex Mono',monospace; font-size:10px; color: var(--done);
+    height:12px;
+  }
+
+  /* ---------- Modal / sheet ---------- */
+  .overlay{
+    position:fixed; top:0; left:0; right:0; height:var(--vvh, 100dvh);
+    background: rgba(0,0,0,0.55);
+    display:flex; align-items:flex-end; justify-content:center;
+    z-index:50;
+  }
+  @media (min-width:640px){
+    .overlay{ align-items:center; }
+  }
+  .sheet{
+    width:100%; max-width:440px; max-height:82%;
+    background: var(--ink-soft); border-radius: 22px 22px 0 0;
+    display:flex; flex-direction:column; overflow:hidden;
+  }
+  @media (min-width:640px){
+    .sheet{ border-radius:20px; max-height:76%; }
+  }
+  .sheet-header{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:18px 18px 16px; border-bottom:1px solid var(--line);
+  }
+  .sheet-header .title-wrap{ display:flex; align-items:center; gap:10px; }
+  .sheet-header .title{ font-family:'Fraunces', serif; font-size:19px; }
+  .sheet-header .close-btn{
+    background:none; border:none; color:var(--paper-dim); cursor:pointer;
+    width:30px; height:30px; display:flex; align-items:center; justify-content:center;
+  }
+  .done-tag{
+    font-family:'IBM Plex Mono',monospace; font-size:10px; color:var(--done);
+    border:1px solid var(--done); border-radius:20px; padding:2px 8px;
+  }
+  .sheet-body{
+    flex:1; overflow-y:auto; -webkit-overflow-scrolling:touch;
+    padding:28px 20px; color:var(--paper-dim); font-size:13.5px;
+  }
+  .sheet-footer{ padding:16px 18px calc(16px + env(safe-area-inset-bottom)); border-top:1px solid var(--line); }
+  .submit-btn{
+    width:100%; padding:15px; border-radius:12px; border:none;
+    background: var(--accent); color: var(--ink); font-weight:600; font-size:15px;
+    cursor:pointer;
+  }
+  .submit-btn.outline{
+    background:transparent; border:1px solid var(--line); color:var(--paper-dim);
+    transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+  }
+  .submit-btn.outline.ready{
+    background: var(--paper); color: var(--ink); border-color: var(--paper);
+  }
+  .choice-btn{
+    padding:14px 20px; border-radius:12px; border:1px solid var(--line);
+    background:rgba(244,242,237,0.04); color:var(--paper);
+    font-family:'Inter',sans-serif; font-weight:600; font-size:15px;
+    cursor:pointer; transition: background 0.15s ease, border-color 0.15s ease;
+  }
+  .choice-btn.selected{
+    background: var(--accent); color: var(--ink); border-color: var(--accent);
+  }
+  .choice-btn-sm{ padding:8px 12px; font-size:13px; font-weight:500; }
+</style>
+</head>
+<body>
+<div id="app"></div>
+
+<div id="syncIndicator" class="sync-indicator" aria-live="polite">
+  <span class="sync-dot"></span> <span class="sync-label">Saving…</span>
+</div>
+
+<script>
+/* =========================================================================
+   CONFIG — this is the only part you touch to add new Morning/Evening items.
+   Each option just needs: id (unique, used as storage key), label, icon.
+   Everything else (tiles, modal, saving, green-outline state) is generic
+   and picks up new entries automatically.
+
+   NOTE ON STYLE: this file deliberately avoids JS template literals
+   (backtick strings) entirely, using double-quoted strings with +
+   concatenation instead, and single quotes for any HTML/SVG attributes
+   generated within those strings. Backticks were getting silently mangled
+   somewhere in the copy/paste pipeline used to move this file into the
+   Apps Script editor, which produced hard-to-spot syntax errors — plain
+   quotes survive that pipeline reliably.
+   ========================================================================= */
+const ICONS = {
+  sun: "<circle cx='12' cy='12' r='4'/><path d='M12 2v3M12 19v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M2 12h3M19 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1'/>",
+  calendar: "<rect x='3.5' y='5' width='17' height='16' rx='3'/><path d='M8 3v4M16 3v4M3.5 10h17'/>",
+  moon: "<path d='M20 14.5A8.5 8.5 0 1 1 9.5 4a7 7 0 0 0 10.5 10.5z'/>",
+  bolt: "<path d='M13 2 4 14h6l-1 8 9-12h-6z'/>",
+  pencil: "<path d='M4 20l1-4L15.5 5.5l3 3L8 20l-4 1z'/><path d='M13.5 7l3 3'/>",
+  gauge: "<path d='M4 15a8 8 0 1 1 16 0'/><path d='M12 15l4-5'/><circle cx='12' cy='15' r='1.3' fill='currentColor' stroke='none'/>",
+  coffee: "<path d='M5 9h13v5a5 5 0 0 1-5 5H10a5 5 0 0 1-5-5V9z'/><path d='M18 10h1.5a2 2 0 0 1 0 4H18'/><path d='M8 3c0 1-1 1-1 2s1 1 1 2M12 3c0 1-1 1-1 2s1 1 1 2'/>",
+  mountain: "<path d='M3 19l6-10 4 6 2-3 6 7z'/>",
+  dumbbell: "<path d='M7 7v10M17 7v10M2 12h3M19 12h3M9.5 7v10M14.5 7v10'/>",
+  trail: "<path d='M4 18c3-2 3-6 6-6s3 4 6 4 3-4 6-4' stroke-dasharray='1.5 3.2'/><circle cx='4' cy='18' r='1' fill='currentColor' stroke='none'/><circle cx='22' cy='12' r='1' fill='currentColor' stroke='none'/>"
+};
+
+const CONFIG = {
+  morning: {
+    label: "Morning",
+    options: [
+      { id: "weather", label: "Weather", icon: ICONS.sun },
+      { id: "calendar", label: "Calendar Brief", icon: ICONS.calendar },
+      { id: "sleep", label: "Sleep", icon: ICONS.moon },
+      { id: "wakeUpEnergy", label: "Wake-Up Energy", icon: ICONS.bolt }
+    ]
+  },
+  evening: {
+    label: "Evening",
+    options: [
+      { id: "journal", label: "Journal Entry", icon: ICONS.pencil },
+      { id: "mood", label: "Mood", icon: ICONS.gauge },
+      { id: "dayEnergy", label: "Day Energy", icon: ICONS.bolt },
+      { id: "caffeine", label: "Caffeine", icon: ICONS.coffee },
+      { id: "climbing", label: "Climbing", icon: ICONS.mountain },
+      { id: "gym", label: "2-Rep Bench", icon: ICONS.dumbbell },
+      { id: "hiking", label: "Hiking", icon: ICONS.trail }
+    ]
+  }
+};
+
+// Options that save and close the instant you make a choice — no separate
+// Save button. renderModal hides the footer for these; each one calls
+// autoSaveOption directly from its own buttons instead of going through
+// the usual submitOption/Save-button flow.
+const AUTO_SAVE_OPTIONS = ["mood", "climbing", "hiking", "wakeUpEnergy", "dayEnergy"];
+
+// VB, V0, V1 ... V17 — the fixed grade list for the Climbing option.
+const CLIMBING_GRADES = ["VB"].concat(Array.from({ length: 18 }, (_, i) => "V" + i));
+function climbingGradeToInt(label) {
+  return label === "VB" ? -1 : parseInt(label.slice(1), 10);
+}
+/* ========================================================================= */
+
+// ---------- State ----------
+let state = {
+  view: "home",        // "home" | "morning" | "evening"
+  selectedDate: null,  // "YYYY-MM-DD"
+  dayData: { morning: {}, evening: {} },
+  modal: null,          // { section, optionId } | null
+  calendarOpen: false,
+  calendarMonth: null,  // "YYYY-MM" — which month the dropdown is showing
+  loading: true,
+  needsSheetSetup: false,   // set true when the server reports no Sheet is linked yet
+  spreadsheetUrl: null,     // populated once a Sheet is linked, for an "open it" link
+  // The furthest date actually in the sheet. The calendar picker allows
+  // navigating up to whichever is later — this or the browser's own
+  // current date — so an already-logged day never becomes unreachable
+  // just because the visitor's system clock/timezone shifted and now
+  // makes that date look like "the future" locally. See renderCalendarPopover.
+  maxSheetDate: null,
+  showSheetSetup: false,    // whether the sheet-setup modal is open
+  sheetSetupBusy: false,
+  sheetSetupError: null,
+  // Fetched fresh each time the Calendar Brief popup opens — not persisted.
+  calendarBrief: { status: "idle", events: [], error: null }, // idle|loading|loaded|error
+  // idle|needs_location|loading|loaded|error. location is {lat,lon,label}
+  // once known — cached in localStorage so it's remembered across sessions.
+  weatherBrief: { status: "idle", data: null, error: null, location: null }
+};
+
+// ---------- Date / timezone helpers ----------
+// A "day" for logging purposes runs 6:00 AM to 5:59 AM the next calendar
+// date — so an entry made at 1am still counts toward the day that's
+// ending, not the one that just started. Recomputed fresh every call
+// (never cached), so a timezone change is picked up automatically too.
+function getDateInfo() {
+  const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  const now = new Date();
+  const hour = Number(now.toLocaleString("en-US", { timeZone: tz, hour: "2-digit", hour12: false }));
+  const actualDateStr = now.toLocaleDateString("en-CA", { timeZone: tz }); // real calendar date
+  const isLateNight = hour < 6;
+  // Shift the instant back 24h before formatting, so the late-night window
+  // resolves to yesterday's calendar date rather than today's.
+  const logicalInstant = isLateNight ? new Date(now.getTime() - 24 * 60 * 60 * 1000) : now;
+  const logicalDateStr = logicalInstant.toLocaleDateString("en-CA", { timeZone: tz });
+  return { tz, now, hour, actualDateStr, logicalDateStr, isLateNight };
+}
+
+function formatDateLabel(dateStr) {
+  // Parse as a local calendar date (not UTC) to avoid off-by-one issues
+  const [y, m, d] = dateStr.split("-").map(Number);
+  const dt = new Date(y, m - 1, d);
+  return dt.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" });
+}
+
+// ---------- Server bridge ----------
+// google.script.run is callback-based; wrap it so the rest of the app can
+// keep using async/await exactly like the skeleton phase did.
+function runServer(fnName, ...args) {
+  return new Promise((resolve, reject) => {
+    google.script.run
+      .withSuccessHandler(resolve)
+      .withFailureHandler(err => reject(new Error(err && err.message ? err.message : String(err))))
+      [fnName](...args);
+  });
+}
+
+// ---------- Storage (now backed by the user's own Google Sheet) ----------
+// The Sheet is the source of truth — no local copy. If no spreadsheet is
+// linked yet, loadDay resolves to an empty day and flags state.needsSheetSetup
+// so the UI can prompt for it; saveEntry surfaces the same error so a save
+// attempt also nudges setup rather than silently doing nothing.
+async function loadDay(dateStr) {
+  try {
+    const data = await runServer("serverLoadDay", dateStr);
+    state.needsSheetSetup = false;
+    return data;
+  } catch (e) {
+    if (e.message === "NO_SPREADSHEET") state.needsSheetSetup = true;
+    else console.error("Load failed", e);
+    return { morning: {}, evening: {} };
+  }
+}
+
+async function saveEntry(dateStr, optionId, value, attempt = 1) {
+  try {
+    await runServer("serverSaveEntry", dateStr, optionId, value);
+    state.needsSheetSetup = false;
+    return true;
+  } catch (e) {
+    if (e.message === "NO_SPREADSHEET") {
+      state.needsSheetSetup = true;
+      return false;
+    }
+    console.error("Sheet save failed (attempt " + attempt + ")", e);
+    if (attempt < 3) {
+      await new Promise(r => setTimeout(r, 400 * attempt));
+      return saveEntry(dateStr, optionId, value, attempt + 1);
+    }
+    return false;
+  }
+}
+
+// ---------- Background sync indicator ----------
+// Tracks how many saves are currently in flight. The indicator element
+// lives outside #app so it's never wiped by a render() re-draw.
+let pendingSaves = 0;
+function beginSync(label = "Saving…") {
+  pendingSaves++;
+  const el = document.getElementById("syncIndicator");
+  if (!el) return;
+  el.classList.remove("error");
+  const labelEl = el.querySelector(".sync-label");
+  if (labelEl) labelEl.textContent = label;
+  el.classList.add("visible");
+}
+function endSync(success) {
+  pendingSaves = Math.max(0, pendingSaves - 1);
+  const el = document.getElementById("syncIndicator");
+  if (!el) return;
+  if (!success) {
+    el.classList.add("visible", "error");
+    const label = el.querySelector(".sync-label");
+    if (label) label.textContent = "Save failed — try again";
+  } else if (pendingSaves === 0) {
+    el.classList.remove("visible");
+  }
+}
+
+// ---------- Viewport handling (keeps sheet + submit button clear of the keyboard) ----------
+function updateVVH() {
+  const h = window.visualViewport ? window.visualViewport.height : window.innerHeight;
+  document.documentElement.style.setProperty("--vvh", h + "px");
+}
+window.addEventListener("resize", updateVVH);
+if (window.visualViewport) window.visualViewport.addEventListener("resize", updateVVH);
+updateVVH();
+
+// ---------- Icon helper ----------
+function icon(svgInner) {
+  return "<svg viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'>" + svgInner + "</svg>";
+}
+
+// ---------- Rendering ----------
+// The "sleep" tile is the one case where a single option's data lives
+// under two different dayData keys (bedtime, wakeup) rather than one
+// matching its own id — everywhere else, data[o.id] is enough. Centralized
+// here so every done-check (tile checkmarks, progress counts, the modal's
+// Done tag) agrees on what "done" means for it: both fields entered, not
+// just one, since Sleep's Duration calculation needs both, and Weather's
+// two fields are always saved together anyway.
+function isOptionDone(section, optionId) {
+  const data = state.dayData[section] || {};
+  if (optionId === "sleep") {
+    return !!(data.bedtime && data.bedtime.done && data.wakeup && data.wakeup.done);
+  }
+  if (optionId === "weather") {
+    return !!(data.weatherCondition && data.weatherCondition.done && data.weatherHighTemp && data.weatherHighTemp.done);
+  }
+  return !!(data[optionId] && data[optionId].done);
+}
+
+function countDone(section) {
+  const opts = CONFIG[section].options;
+  const done = opts.filter(o => isOptionDone(section, o.id)).length;
+  return { done, total: opts.length };
+}
+
+function renderHome() {
+  const dateInfo = getDateInfo();
+  const tz = dateInfo.tz;
+  const logicalDateStr = dateInfo.logicalDateStr;
+  const isLateNight = dateInfo.isLateNight;
+  const isToday = state.selectedDate === logicalDateStr;
+  const showNightNote = isLateNight && isToday;
+  const m = countDone("morning");
+  const e = countDone("evening");
+
+  var html = "";
+  html += "<div class='date-center'>";
+  html += "<button type='button' class='date-row' onclick='toggleCalendar(event)' aria-label='Change date' aria-expanded='" + state.calendarOpen + "'>";
+  html += "<span class='date-btn'>" + formatDateLabel(state.selectedDate) + "</span>";
+  html += "</button>";
+  html += state.calendarOpen ? renderCalendarPopover() : "";
+  html += "</div>";
+
+  html += "<div class='tz-row'>";
+  html += "<span class='tz-label'>" + tz + "</span>";
+  if (!isToday) html += "<button class='today-pill' onclick='goToday(event)'>Back to today</button>";
+  html += "</div>";
+
+  if (showNightNote) {
+    html += "<div class='night-note'>" + icon(ICONS.moon) + "<span>Before 6am — still logging for " + formatDateLabel(logicalDateStr) + "</span></div>";
+  }
+
+  html += "<div class='google-row'>";
+  html += "<button type='button' class='google-chip " + (state.spreadsheetUrl ? "connected" : "") + "' onclick='openSheetSetup()'>";
+  html += "Sheet: " + (state.spreadsheetUrl ? "Linked" : "Set up");
+  html += "</button>";
+  html += "</div>";
+
+  html += "<button class='big-btn morning " + (m.done === m.total ? "done" : "") + "' onclick='openSection(\"morning\")'>";
+  html += "<div class='label-col'>";
+  html += "<span class='title'>Morning</span>";
+  html += "<span class='progress'>" + m.done + " of " + m.total + " done</span>";
+  html += "</div>";
+  html += "<span class='chev'>" + icon("<path d='M9 6l6 6-6 6'/>") + "</span>";
+  html += "</button>";
+
+  html += "<button class='big-btn evening " + (e.done === e.total ? "done" : "") + "' onclick='openSection(\"evening\")'>";
+  html += "<div class='label-col'>";
+  html += "<span class='title'>Evening</span>";
+  html += "<span class='progress'>" + e.done + " of " + e.total + " done</span>";
+  html += "</div>";
+  html += "<span class='chev'>" + icon("<path d='M9 6l6 6-6 6'/>") + "</span>";
+  html += "</button>";
+
+  return html;
+}
+
+function renderSection(sectionKey) {
+  const section = CONFIG[sectionKey];
+  var tiles = "";
+  section.options.forEach(function (o) {
+    const done = isOptionDone(sectionKey, o.id);
+    tiles += "<div class='tile " + (done ? "done" : "") + "' onclick='openOption(\"" + sectionKey + "\", \"" + o.id + "\")'>";
+    tiles += "<div class='icon-wrap'>" + icon(o.icon) + "</div>";
+    tiles += "<div class='label'>" + o.label + "</div>";
+    tiles += "<div class='status'>" + (done ? "Done" : "") + "</div>";
+    tiles += "</div>";
+  });
+
+  var html = "";
+  html += "<div class='section-header'>";
+  html += "<button class='back-btn' onclick='goHome()' aria-label='Back'>" + icon("<path d='M15 6l-6 6 6 6'/>") + "</button>";
+  html += "<div class='titles'>";
+  html += "<span class='title'>" + section.label + "</span>";
+  html += "<span class='subtitle'>" + formatDateLabel(state.selectedDate) + "</span>";
+  html += "</div>";
+  html += "</div>";
+  html += "<div class='options-grid'>" + tiles + "</div>";
+  return html;
+}
+
+function renderCalendarBriefBody() {
+  const b = state.calendarBrief;
+  if (b.status === "loading") return "<p style='margin:0;'>Loading today's events…</p>";
+  if (b.status === "error") {
+    return "<p style='margin:0 0 14px; color:#E8827A;'>Couldn't load events: " + (b.error || "unknown error") + "</p>" +
+      "<button type='button' class='submit-btn' style='width:auto; padding:10px 16px;' onclick='loadCalendarBrief()'>Retry</button>";
+  }
+  if (!b.events.length) return "<p style='margin:0;'>Nothing on the calendar for this day.</p>";
+
+  var eventsHtml = "";
+  b.events.forEach(function (ev) {
+    const timeLabel = ev.allDay ? "All day" : new Date(ev.start).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+    eventsHtml += "<div style='display:flex; gap:10px; align-items:baseline;'>";
+    eventsHtml += "<span style=\"font-family:'IBM Plex Mono',monospace; font-size:11px; color:var(--paper-dim); min-width:52px;\">";
+    eventsHtml += timeLabel;
+    eventsHtml += "</span>";
+    eventsHtml += "<div style='display:flex; flex-direction:column; gap:2px;'>";
+    eventsHtml += "<span style='font-size:13.5px; color:var(--paper);'>" + ev.summary + "</span>";
+    if (ev.calendarName) {
+      eventsHtml += "<span style=\"font-family:'IBM Plex Mono',monospace; font-size:9.5px; color:var(--paper-dim);\">" + ev.calendarName + "</span>";
+    }
+    eventsHtml += "</div>";
+    eventsHtml += "</div>";
+  });
+
+  return "<div style='display:flex; flex-direction:column; gap:10px;'>" + eventsHtml + "</div>";
+}
+
+// Journal entries are free-form user text that can contain any character —
+// escape before inserting between <textarea> tags so something like "<3"
+// or "cats & dogs" doesn't get misread as markup.
+function escapeHtml(str) {
+  return String(str)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+}
+
+function renderJournalBody() {
+  const existing = state.dayData.evening.journal;
+  const value = existing && existing.value ? existing.value : "";
+  var html = "";
+  html += "<textarea id='journal-textarea' placeholder='Write about your day...' style=\"width:100%; box-sizing:border-box; min-height:200px; padding:12px; border-radius:10px; border:1px solid var(--line); background:rgba(244,242,237,0.04); color:var(--paper); font-family:'Inter',sans-serif; font-size:14px; line-height:1.5; resize:vertical;\">";
+  html += escapeHtml(value);
+  html += "</textarea>";
+  return html;
+}
+
+// The merged Sleep tile: two plain native time pickers in one popup —
+// when you went to bed (last night) and when you woke up (this morning).
+// Both values are always "HH:MM" (24-hour); the server converts each into
+// a real time-typed cell so the Sleep Duration formula's arithmetic works.
+// Bedtime/wake time land in the same row either way (see submitSleepEntry),
+// so the Duration formula, which reads both from that row, keeps working.
+function renderSleepBody() {
+  const bedtime = state.dayData.morning.bedtime;
+  const wakeup = state.dayData.morning.wakeup;
+  const bedValue = bedtime && bedtime.value ? bedtime.value : "";
+  const wakeValue = wakeup && wakeup.value ? wakeup.value : "";
+  var html = "";
+  html += "<label style='display:block; font-size:12.5px; color:var(--paper-dim); margin-bottom:6px;'>Went to bed at (last night)</label>";
+  html += "<input id='sleep-time-input' type='time' value='" + escapeHtml(bedValue) + "' style=\"width:100%; box-sizing:border-box; padding:10px 12px; border-radius:8px; border:1px solid var(--line); background:rgba(244,242,237,0.04); color:var(--paper); font-family:'IBM Plex Mono',monospace; font-size:16px; margin-bottom:18px;\">";
+  html += "<label style='display:block; font-size:12.5px; color:var(--paper-dim); margin-bottom:6px;'>Woke up at (this morning)</label>";
+  html += "<input id='wake-time-input' type='time' value='" + escapeHtml(wakeValue) + "' style=\"width:100%; box-sizing:border-box; padding:10px 12px; border-radius:8px; border:1px solid var(--line); background:rgba(244,242,237,0.04); color:var(--paper); font-family:'IBM Plex Mono',monospace; font-size:16px;\">";
+  return html;
+}
+
+function renderMoodBody() {
+  const section = state.modal.section, optionId = state.modal.optionId;
+  const existing = state.dayData[section][optionId];
+  const current = existing && existing.value !== undefined && existing.value !== "" ? Number(existing.value) : null;
+  var html = "<div style='display:flex; gap:10px; justify-content:center;'>";
+  for (var n = 1; n <= 5; n++) {
+    const selected = current === n;
+    html += "<button type='button' class='choice-btn" + (selected ? " selected" : "") + "' onclick='autoSaveOption(\"" + section + "\", \"" + optionId + "\", \"" + n + "\")'>" + n + "</button>";
+  }
+  html += "</div>";
+  return html;
+}
+
+// Shared by Wake-Up Energy and Day Energy — same 1-10 single-tap grid
+// pattern as Mood's 1-5, just a wider range, so it wraps onto two rows
+// instead of staying on one.
+function renderEnergyBody() {
+  const section = state.modal.section, optionId = state.modal.optionId;
+  const existing = state.dayData[section][optionId];
+  const current = existing && existing.value !== undefined && existing.value !== "" ? Number(existing.value) : null;
+  var html = "<div style='display:flex; flex-wrap:wrap; gap:8px; justify-content:center;'>";
+  for (var n = 1; n <= 10; n++) {
+    const selected = current === n;
+    html += "<button type='button' class='choice-btn choice-btn-sm" + (selected ? " selected" : "") + "' onclick='autoSaveOption(\"" + section + "\", \"" + optionId + "\", \"" + n + "\")'>" + n + "</button>";
+  }
+  html += "</div>";
+  return html;
+}
+
+function renderCaffeineBody() {
+  const existing = state.dayData.evening.caffeine;
+  const value = existing && existing.value ? existing.value : "";
+  const hasBefore = value.indexOf("Before 2pm") !== -1;
+  const hasAfter = value.indexOf("After 2pm") !== -1;
+  var html = "";
+  html += "<p style='margin:0 0 16px;'>When did you have caffeine today? Select any that apply.</p>";
+  html += "<div style='display:flex; gap:10px;'>";
+  html += "<button type='button' id='caffeine-before' class='choice-btn" + (hasBefore ? " selected" : "") + "' onclick='this.classList.toggle(\"selected\")'>Before 2pm</button>";
+  html += "<button type='button' id='caffeine-after' class='choice-btn" + (hasAfter ? " selected" : "") + "' onclick='this.classList.toggle(\"selected\")'>After 2pm</button>";
+  html += "</div>";
+  return html;
+}
+
+function renderClimbingBody() {
+  const section = state.modal.section, optionId = state.modal.optionId;
+  const existing = state.dayData[section][optionId];
+  const current = existing && existing.value !== undefined && existing.value !== "" ? Number(existing.value) : null;
+  var html = "<div style='display:flex; flex-wrap:wrap; gap:8px; justify-content:center;'>";
+  CLIMBING_GRADES.forEach(function (label) {
+    const intVal = climbingGradeToInt(label);
+    const selected = current === intVal;
+    html += "<button type='button' class='choice-btn choice-btn-sm" + (selected ? " selected" : "") + "' onclick='autoSaveOption(\"" + section + "\", \"" + optionId + "\", \"" + intVal + "\")'>" + label + "</button>";
+  });
+  html += "</div>";
+  return html;
+}
+
+function renderBenchBody() {
+  const existing = state.dayData.evening.gym;
+  const value = existing && existing.value ? existing.value : "";
+  var html = "";
+  html += "<label style='display:block; font-size:12.5px; color:var(--paper-dim); margin-bottom:6px;'>2-rep max, in pounds</label>";
+  html += "<input id='bench-input' type='number' inputmode='numeric' placeholder='e.g. 225' value='" + escapeHtml(value) + "' style=\"width:100%; box-sizing:border-box; padding:10px 12px; border-radius:8px; border:1px solid var(--line); background:rgba(244,242,237,0.04); color:var(--paper); font-family:'IBM Plex Mono',monospace; font-size:14px;\">";
+  return html;
+}
+
+function renderHikingBody() {
+  const section = state.modal.section, optionId = state.modal.optionId;
+  const existing = state.dayData[section][optionId];
+  const current = existing ? existing.value : null;
+  var html = "";
+  html += "<p style='margin:0 0 16px; text-align:center;'>Did you hike today?</p>";
+  html += "<div style='display:flex; gap:12px; justify-content:center;'>";
+  ["Yes", "No"].forEach(function (label) {
+    const selected = current === label;
+    html += "<button type='button' class='choice-btn" + (selected ? " selected" : "") + "' onclick='autoSaveOption(\"" + section + "\", \"" + optionId + "\", \"" + label + "\")'>" + label + "</button>";
+  });
+  html += "</div>";
+  return html;
+}
+
+function renderModal() {
+  if (!state.modal) return "";
+  const section = state.modal.section;
+  const optionId = state.modal.optionId;
+  const option = CONFIG[section].options.find(function (o) { return o.id === optionId; });
+  const done = isOptionDone(section, optionId);
+  const isAutoSave = AUTO_SAVE_OPTIONS.indexOf(optionId) !== -1;
+  // Weather/Calendar both save real fetched data, not something typed in —
+  // there's nothing meaningful to save until that fetch actually finishes.
+  const notReadyToSave = (optionId === "weather" && state.weatherBrief.status !== "loaded") ||
+                          (optionId === "calendar" && state.calendarBrief.status !== "loaded");
+
+  var bodyHtml;
+  if (optionId === "calendar") bodyHtml = renderCalendarBriefBody();
+  else if (optionId === "weather") bodyHtml = renderWeatherBriefBody();
+  else if (optionId === "journal") bodyHtml = renderJournalBody();
+  else if (optionId === "mood") bodyHtml = renderMoodBody();
+  else if (optionId === "wakeUpEnergy" || optionId === "dayEnergy") bodyHtml = renderEnergyBody();
+  else if (optionId === "caffeine") bodyHtml = renderCaffeineBody();
+  else if (optionId === "sleep") bodyHtml = renderSleepBody();
+  else if (optionId === "climbing") bodyHtml = renderClimbingBody();
+  else if (optionId === "gym") bodyHtml = renderBenchBody();
+  else if (optionId === "hiking") bodyHtml = renderHikingBody();
+  else bodyHtml = "This is a placeholder — " + option.label + " content goes here next.";
+
+  var html = "";
+  html += "<div class='overlay' onclick='if(event.target===this) closeModal()'>";
+  html += "<div class='sheet'>";
+  html += "<div class='sheet-header'>";
+  html += "<div class='title-wrap'>";
+  html += "<span class='title'>" + option.label + "</span>";
+  if (done) html += "<span class='done-tag'>Done</span>";
+  html += "</div>";
+  html += "<button class='close-btn' onclick='closeModal()' aria-label='Close'>" + icon("<path d='M6 6l12 12M18 6L6 18'/>") + "</button>";
+  html += "</div>";
+  html += "<div class='sheet-body'>" + bodyHtml + "</div>";
+  if (!isAutoSave && !notReadyToSave) {
+    const saveHandler = optionId === "sleep" ? "submitSleepEntry()"
+      : optionId === "weather" ? "submitWeatherEntry()"
+      : optionId === "calendar" ? "submitCalendarEntry()"
+      : "submitOption()";
+    html += "<div class='sheet-footer'>";
+    html += "<button class='submit-btn' onclick='" + saveHandler + "'>Save</button>";
+    html += "</div>";
+  }
+  html += "</div>";
+  html += "</div>";
+  return html;
+}
+
+function renderSheetSetup() {
+  var html = "";
+  html += "<div class='overlay' onclick='if(event.target===this && !state.sheetSetupBusy) closeSheetSetup()'>";
+  html += "<div class='sheet'>";
+  html += "<div class='sheet-header'>";
+  html += "<div class='title-wrap'><span class='title'>Set up your Sheet</span></div>";
+  html += "<button class='close-btn' onclick='closeSheetSetup()' aria-label='Close'>" + icon("<path d='M6 6l12 12M18 6L6 18'/>") + "</button>";
+  html += "</div>";
+  html += "<div class='sheet-body'>";
+  html += "<p style='margin:0 0 16px;'>This lives entirely in your own Google Drive — no one else's account, and nothing on our end.</p>";
+
+  html += "<button type='button' class='submit-btn' style='width:100%; margin-bottom:14px;' onclick='handleCreateNewSheet()'" + (state.sheetSetupBusy ? " disabled" : "") + ">";
+  html += state.sheetSetupBusy ? "Working…" : "Create a new Sheet for me";
+  html += "</button>";
+
+  html += "<div style=\"text-align:center; font-family:'IBM Plex Mono',monospace; font-size:11px; color:var(--paper-dim); margin-bottom:14px;\">— or —</div>";
+
+  html += "<label style='display:block; font-size:12.5px; color:var(--paper-dim); margin-bottom:6px;'>Paste a link to a Sheet you already own</label>";
+  html += "<input id='sheet-link-input' type='text' placeholder='https://docs.google.com/spreadsheets/d/...' oninput='onSheetLinkInput(this.value)' style=\"width:100%; box-sizing:border-box; padding:10px 12px; border-radius:8px; border:1px solid var(--line); background:rgba(244,242,237,0.04); color:var(--paper); font-family:'IBM Plex Mono',monospace; font-size:12.5px; margin-bottom:10px;\">";
+  html += "<button type='button' id='link-sheet-btn' class='submit-btn outline' onclick='handleLinkExistingSheet()'" + (state.sheetSetupBusy ? " disabled" : "") + ">";
+  html += "Use this Sheet";
+  html += "</button>";
+
+  if (state.sheetSetupError) {
+    html += "<p style='margin:14px 0 0; color:#E8827A; font-size:12.5px;'>" + state.sheetSetupError + "</p>";
+  }
+
+  html += "</div>";
+  html += "</div>";
+  html += "</div>";
+  return html;
+}
+
+function render() {
+  document.body.setAttribute("data-mode", state.view === "evening" ? "evening" : "morning");
+  const app = document.getElementById("app");
+  if (state.view === "home") app.innerHTML = renderHome();
+  else app.innerHTML = renderSection(state.view);
+
+  document.querySelectorAll(".overlay").forEach(function (el) { el.remove(); });
+  if (state.showSheetSetup) {
+    document.body.insertAdjacentHTML("beforeend", renderSheetSetup());
+    updateVVH();
+  } else if (state.modal) {
+    document.body.insertAdjacentHTML("beforeend", renderModal());
+    updateVVH();
+  }
+}
+
+// ---------- Sheet setup actions ----------
+function openSheetSetup() {
+  state.showSheetSetup = true;
+  state.sheetSetupError = null;
+  render();
+}
+
+function closeSheetSetup() {
+  state.showSheetSetup = false;
+  render();
+}
+
+// Mirrors the server's extractSpreadsheetId_ logic just closely enough to
+// tell whether the "Use this Sheet" button should look actionable. Updates
+// the button directly via the DOM rather than calling render() — a full
+// re-render on every keystroke would rebuild the input and drop focus/cursor
+// position while typing.
+function isLikelySpreadsheetLink(raw) {
+  const trimmed = (raw || "").trim();
+  if (/\/spreadsheets\/d\/[a-zA-Z0-9-_]+/.test(trimmed)) return true;
+  if (/^[a-zA-Z0-9-_]{20,}$/.test(trimmed)) return true;
+  return false;
+}
+
+function onSheetLinkInput(value) {
+  const btn = document.getElementById("link-sheet-btn");
+  if (!btn) return;
+  btn.classList.toggle("ready", isLikelySpreadsheetLink(value));
+}
+
+async function handleCreateNewSheet() {
+  state.sheetSetupBusy = true;
+  state.sheetSetupError = null;
+  render();
+  try {
+    // Pass the visitor's own logical "today" (accounts for their timezone
+    // and the 6am cutoff) rather than letting the server guess at one via
+    // its own script timezone, which could be off by a day.
+    const { logicalDateStr } = getDateInfo();
+    const result = await runServer("createOwnSpreadsheet", logicalDateStr);
+    state.spreadsheetUrl = result.url;
+    state.maxSheetDate = result.maxSheetDate;
+    state.needsSheetSetup = false;
+    state.showSheetSetup = false;
+    reloadDayData().then(render);
+  } catch (e) {
+    console.error("Create sheet failed:", e);
+    state.sheetSetupError = "Something went wrong creating the Sheet — try again.";
+  }
+  state.sheetSetupBusy = false;
+  render();
+}
+
+async function handleLinkExistingSheet() {
+  const raw = document.getElementById("sheet-link-input").value;
+  if (!raw || !raw.trim()) {
+    state.sheetSetupError = "Paste a Sheets link or ID first.";
+    render();
+    return;
+  }
+  state.sheetSetupBusy = true;
+  state.sheetSetupError = null;
+  render();
+  try {
+    const { logicalDateStr } = getDateInfo();
+    const result = await runServer("linkExistingSpreadsheet", raw, logicalDateStr);
+    state.spreadsheetUrl = result.url;
+    state.maxSheetDate = result.maxSheetDate;
+    state.needsSheetSetup = false;
+    state.showSheetSetup = false;
+    reloadDayData().then(render);
+  } catch (e) {
+    console.error("Link existing sheet failed:", e);
+    state.sheetSetupError = e.message === "NO_ACCESS"
+      ? "Couldn't open that Sheet — make sure the link is right and you own it."
+      : "That doesn't look like a valid Google Sheets link or ID.";
+  }
+  state.sheetSetupBusy = false;
+  render();
+}
+
+// ---------- Calendar Brief ----------
+async function loadCalendarBrief() {
+  state.calendarBrief = { status: "loading", events: [], error: null };
+  render();
+  try {
+    const [y, m, d] = state.selectedDate.split("-").map(Number);
+    const startIso = new Date(y, m - 1, d, 0, 0, 0).toISOString();
+    const endIso = new Date(y, m - 1, d, 23, 59, 59).toISOString();
+    const events = await runServer("getTodaysEvents", startIso, endIso);
+    state.calendarBrief = { status: "loaded", events, error: null };
+  } catch (e) {
+    state.calendarBrief = { status: "error", events: [], error: e.message };
+  }
+  render();
+}
+
+// ---------- Weather Brief (Open-Meteo — free, no API key, CORS-friendly) ----------
+const WEATHER_LOCATION_KEY = "weather-location";
+const WEATHER_CODES = {
+  0: "Clear sky", 1: "Mainly clear", 2: "Partly cloudy", 3: "Overcast",
+  45: "Fog", 48: "Depositing rime fog",
+  51: "Light drizzle", 53: "Moderate drizzle", 55: "Dense drizzle",
+  56: "Light freezing drizzle", 57: "Dense freezing drizzle",
+  61: "Slight rain", 63: "Moderate rain", 65: "Heavy rain",
+  66: "Light freezing rain", 67: "Heavy freezing rain",
+  71: "Slight snow", 73: "Moderate snow", 75: "Heavy snow", 77: "Snow grains",
+  80: "Slight rain showers", 81: "Moderate rain showers", 82: "Violent rain showers",
+  85: "Slight snow showers", 86: "Heavy snow showers",
+  95: "Thunderstorm", 96: "Thunderstorm, slight hail", 99: "Thunderstorm, heavy hail"
+};
+
+function getCachedWeatherLocation() {
+  try {
+    const raw = localStorage.getItem(WEATHER_LOCATION_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch (e) {
+    return null;
+  }
+}
+
+function cacheWeatherLocation(loc) {
+  try { localStorage.setItem(WEATHER_LOCATION_KEY, JSON.stringify(loc)); }
+  catch (e) { /* non-fatal — just won't be remembered next time */ }
+}
+
+function getRawPosition() {
+  return new Promise((resolve, reject) => {
+    if (!navigator.geolocation) { reject(new Error("Geolocation not available")); return; }
+    // Without this, the browser defaults to the cheapest location method
+    // available — on a laptop with no GPS, that's usually coarse
+    // IP-based geolocation, which commonly resolves an entire regional
+    // ISP block to the nearest big city rather than your actual
+    // location (this is likely why Stanford was showing up as San Jose).
+    // enableHighAccuracy asks for the best the device can actually do —
+    // GPS on a phone, real WiFi-based positioning on a laptop that
+    // supports it — instead of settling for that.
+    navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 8000, enableHighAccuracy: true });
+  });
+}
+
+// BigDataCloud's client-side reverse-geocode endpoint — free, no API key,
+// built specifically for exactly this "coordinates to place name" browser
+// use case. Non-fatal on failure: weather still works off lat/lon alone,
+// the label just falls back to something generic.
+async function reverseGeocode(lat, lon) {
+  const url = "https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=" + lat + "&longitude=" + lon + "&localityLanguage=en";
+  const res = await fetch(url);
+  if (!res.ok) throw new Error("Reverse geocoding failed");
+  const data = await res.json();
+  const place = data.city || data.locality;
+  const region = data.principalSubdivision;
+  const label = [place, region && region !== place ? region : null, data.countryName].filter(Boolean).join(", ");
+  return label || "Current location";
+}
+
+async function getBrowserLocation() {
+  const pos = await getRawPosition();
+  const lat = pos.coords.latitude;
+  const lon = pos.coords.longitude;
+  let label = "Current location";
+  try {
+    label = await reverseGeocode(lat, lon);
+  } catch (e) {
+    console.error("Reverse geocode failed, using generic label:", e);
+  }
+  return { lat, lon, label };
+}
+
+async function geocodeCity(name) {
+  const url = "https://geocoding-api.open-meteo.com/v1/search?name=" + encodeURIComponent(name) + "&count=1";
+  const res = await fetch(url);
+  if (!res.ok) throw new Error("Geocoding request failed");
+  const data = await res.json();
+  const hit = data.results && data.results[0];
+  if (!hit) throw new Error("No matching city found");
+  const label = [hit.name, hit.admin1, hit.country].filter(Boolean).join(", ");
+  return { lat: hit.latitude, lon: hit.longitude, label };
+}
+
+async function fetchWeatherForDate(lat, lon, dateStr) {
+  const url = "https://api.open-meteo.com/v1/forecast?latitude=" + lat + "&longitude=" + lon +
+    "&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max" +
+    "&temperature_unit=fahrenheit&precipitation_unit=inch&timezone=auto" +
+    "&start_date=" + dateStr + "&end_date=" + dateStr;
+  const res = await fetch(url);
+  if (!res.ok) throw new Error("Weather request failed");
+  const data = await res.json();
+  if (!data.daily || !data.daily.time || !data.daily.time.length) throw new Error("No data for this date");
+  return {
+    description: WEATHER_CODES[data.daily.weather_code[0]] || "Unknown",
+    high: Math.round(data.daily.temperature_2m_max[0]),
+    low: Math.round(data.daily.temperature_2m_min[0]),
+    precipChance: data.daily.precipitation_probability_max[0]
+  };
+}
+
+async function loadWeatherBrief() {
+  const cached = getCachedWeatherLocation();
+  if (!cached) {
+    state.weatherBrief = { status: "loading", data: null, error: null, location: null };
+    render();
+    try {
+      const loc = await getBrowserLocation();
+      cacheWeatherLocation(loc);
+      await loadWeatherForLocation(loc);
+    } catch (e) {
+      state.weatherBrief = { status: "needs_location", data: null, error: null, location: null };
+      render();
+    }
+    return;
+  }
+  await loadWeatherForLocation(cached);
+}
+
+async function loadWeatherForLocation(loc) {
+  state.weatherBrief = { status: "loading", data: null, error: null, location: loc };
+  render();
+  try {
+    const data = await fetchWeatherForDate(loc.lat, loc.lon, state.selectedDate);
+    state.weatherBrief = { status: "loaded", data, error: null, location: loc };
+  } catch (e) {
+    state.weatherBrief = { status: "error", data: null, error: e.message, location: loc };
+  }
+  render();
+}
+
+async function submitCityLocation() {
+  const raw = document.getElementById("weather-city-input").value;
+  if (!raw || !raw.trim()) return;
+  state.weatherBrief = { status: "loading", data: null, error: null, location: null };
+  render();
+  try {
+    const loc = await geocodeCity(raw.trim());
+    cacheWeatherLocation(loc);
+    await loadWeatherForLocation(loc);
+  } catch (e) {
+    state.weatherBrief = { status: "needs_location", data: null, error: e.message, location: null };
+    render();
+  }
+}
+
+// Clears the cached location and re-runs full detection from scratch —
+// tries geolocation again first (so a stale/wrong cached label actually
+// gets refreshed), falling back to manual entry only if that fails too.
+function changeWeatherLocation() {
+  try { localStorage.removeItem(WEATHER_LOCATION_KEY); } catch (e) { /* non-fatal */ }
+  loadWeatherBrief();
+}
+
+// Jumps straight to the manual city-entry form, skipping another
+// auto-detection attempt entirely — for when you already know geolocation
+// will just give the same (wrong) answer again, e.g. IP-based location
+// resolving to the wrong nearby city. Doesn't touch the cache, so
+// cancelling out of this (closing and reopening Weather) still shows
+// whatever was last loaded rather than forcing a re-detect.
+function showManualLocationEntry() {
+  state.weatherBrief = { status: "needs_location", data: null, error: null, location: state.weatherBrief.location };
+  render();
+}
+
+function renderWeatherBriefBody() {
+  const w = state.weatherBrief;
+
+  if (w.status === "loading") {
+    var htmlLoading = "<p style='margin:0 0 10px;'>Loading weather…</p>";
+    htmlLoading += "<a href='#' onclick='event.preventDefault(); showManualLocationEntry()' style=\"font-family:'IBM Plex Mono',monospace; font-size:11px; color:var(--paper-dim);\">Enter a city manually instead</a>";
+    return htmlLoading;
+  }
+
+  if (w.status === "needs_location") {
+    var msg = w.error ? (w.error + " — try") : "Couldn't get your location automatically —";
+    var html = "";
+    html += "<p style='margin:0 0 14px;'>" + msg + " entering a city instead.</p>";
+    html += "<input id='weather-city-input' type='text' placeholder='City name' style=\"width:100%; box-sizing:border-box; padding:10px 12px; border-radius:8px; border:1px solid var(--line); background:rgba(244,242,237,0.04); color:var(--paper); font-family:'IBM Plex Mono',monospace; font-size:12.5px; margin-bottom:10px;\">";
+    html += "<button type='button' class='submit-btn' style='width:auto; padding:10px 16px;' onclick='submitCityLocation()'>Use this city</button>";
+    return html;
+  }
+
+  if (w.status === "error") {
+    var html2 = "";
+    html2 += "<p style='margin:0 0 14px; color:#E8827A;'>Couldn't load weather: " + (w.error || "unknown error") + "</p>";
+    html2 += "<button type='button' class='submit-btn' style='width:auto; padding:10px 16px; margin-bottom:10px;' onclick='loadWeatherBrief()'>Retry</button>";
+    html2 += "<div><a href='#' onclick='event.preventDefault(); showManualLocationEntry()' style=\"font-family:'IBM Plex Mono',monospace; font-size:11px; color:var(--paper-dim);\">Enter a city manually instead</a></div>";
+    return html2;
+  }
+
+  if (w.status === "loaded") {
+    const d = w.data;
+    var locationLine = "";
+    if (w.location) {
+      locationLine = w.location.label +
+        " · <a href='#' onclick='event.preventDefault(); changeWeatherLocation()' style='color:inherit;'>retry auto-detect</a>" +
+        " · <a href='#' onclick='event.preventDefault(); showManualLocationEntry()' style='color:inherit;'>enter manually</a>";
+    }
+    var html3 = "";
+    html3 += "<div style='display:flex; flex-direction:column; gap:6px;'>";
+    html3 += "<span style='font-size:15px; color:var(--paper);'>" + d.description + "</span>";
+    html3 += "<span style=\"font-family:'IBM Plex Mono',monospace; font-size:13px; color:var(--paper-dim);\">";
+    html3 += "High " + d.high + "° · Low " + d.low + "° · " + d.precipChance + "% chance of precipitation";
+    html3 += "</span>";
+    html3 += "<span style=\"font-family:'IBM Plex Mono',monospace; font-size:10.5px; color:var(--paper-dim); margin-top:8px;\">";
+    html3 += locationLine;
+    html3 += "</span>";
+    html3 += "</div>";
+    return html3;
+  }
+
+  return "";
+}
+
+// ---------- Navigation / actions ----------
+async function reloadDayData() {
+  state.dayData = await loadDay(state.selectedDate);
+}
+
+function goHome() {
+  state.view = "home";
+  state.modal = null;
+  render();
+}
+
+function openSection(sectionKey) {
+  state.view = sectionKey;
+  render();
+}
+
+// Shared by both save paths: the Save-button flow (submitOption) and the
+// auto-save flow (autoSaveOption, for Mood/Climbing/Hiking). Updates local
+// state and closes the modal immediately, then saves in the background —
+// same optimistic pattern either way, just triggered from different places.
+function saveOptionValue(section, optionId, value, isDone) {
+  const existing = state.dayData[section][optionId] || {};
+  const entry = {
+    ...existing,
+    done: isDone,
+    value: value,
+    submittedAt: new Date().toISOString()
+  };
+  state.dayData[section][optionId] = entry;
+  const dateStr = state.selectedDate;
+  state.modal = null;
+  render(); // instant feedback — the tile turns green right away
+
+  // The actual save happens in the background. This keeps running even
+  // after you close this modal or switch to a different log — leaving
+  // the screen never cancels an in-flight save, only fully closing the
+  // tab/app would. The dot in the corner tells you when it's still going.
+  beginSync();
+  saveEntry(dateStr, optionId, value).then(success => {
+    endSync(success);
+    if (success && (!state.maxSheetDate || dateStr > state.maxSheetDate)) {
+      // The server just guaranteed this date has a row — no need to
+      // round-trip again just to learn what we already know.
+      state.maxSheetDate = dateStr;
+    }
+    if (!success && state.needsSheetSetup) {
+      state.showSheetSetup = true;
+      render();
+    }
+  });
+}
+
+// Called directly by Mood/Climbing/Hiking's own choice buttons — no Save
+// button involved at all, per AUTO_SAVE_OPTIONS.
+function autoSaveOption(section, optionId, value) {
+  saveOptionValue(section, optionId, value, true);
+}
+
+function openOption(section, optionId) {
+  state.modal = { section, optionId };
+  render();
+  if (optionId === "calendar") loadCalendarBrief();
+  if (optionId === "weather") loadWeatherBrief();
+}
+
+function closeModal() {
+  state.modal = null;
+  render();
+}
+
+function submitOption() {
+  const { section, optionId } = state.modal;
+
+  let valueToSave;
+  let isDone;
+  if (optionId === "journal") {
+    valueToSave = document.getElementById("journal-textarea").value;
+    isDone = valueToSave.trim().length > 0;
+  } else if (optionId === "caffeine") {
+    const before = document.getElementById("caffeine-before").classList.contains("selected");
+    const after = document.getElementById("caffeine-after").classList.contains("selected");
+    const parts = [];
+    if (before) parts.push("Before 2pm");
+    if (after) parts.push("After 2pm");
+    valueToSave = parts.join(", ");
+    isDone = parts.length > 0;
+  } else if (optionId === "gym") {
+    valueToSave = document.getElementById("bench-input").value.trim();
+    isDone = valueToSave.length > 0;
+  } else {
+    // Every real option is handled above or has its own dedicated submit
+    // function (submitSleepEntry, submitWeatherEntry, submitCalendarEntry)
+    // or auto-saves directly (autoSaveOption) — this shouldn't be
+    // reachable. If it is, don't write anything rather than a meaningless
+    // placeholder.
+    console.error("No save handler for option:", optionId);
+    return;
+  }
+
+  saveOptionValue(section, optionId, valueToSave, isDone);
+}
+
+// The Sleep tile writes two values at once (bedtime + wake time), so it
+// can't go through saveOptionValue's single-value shape — this is its own
+// small version of the same optimistic-update-then-background-save
+// pattern, just updating both dayData keys and firing both saves together.
+// Using the same dateStr for both means they always land in the same row
+// (see ensureDateRowForAllTabs_), which is what keeps the Sleep Duration
+// formula meaningful.
+function submitSleepEntry() {
+  const bedValue = document.getElementById("sleep-time-input").value; // "HH:MM" or ""
+  const wakeValue = document.getElementById("wake-time-input").value;
+  const dateStr = state.selectedDate;
+  const now = new Date().toISOString();
+
+  const existingBed = state.dayData.morning.bedtime || {};
+  const existingWake = state.dayData.morning.wakeup || {};
+  state.dayData.morning.bedtime = { ...existingBed, done: bedValue.length > 0, value: bedValue, submittedAt: now };
+  state.dayData.morning.wakeup = { ...existingWake, done: wakeValue.length > 0, value: wakeValue, submittedAt: now };
+
+  state.modal = null;
+  render();
+
+  beginSync();
+  Promise.all([
+    saveEntry(dateStr, "bedtime", bedValue),
+    saveEntry(dateStr, "wakeup", wakeValue)
+  ]).then(([bedSuccess, wakeSuccess]) => {
+    const success = bedSuccess && wakeSuccess;
+    endSync(success);
+    if (success && (!state.maxSheetDate || dateStr > state.maxSheetDate)) {
+      state.maxSheetDate = dateStr;
+    }
+    if (!success && state.needsSheetSetup) {
+      state.showSheetSetup = true;
+      render();
+    }
+  });
+}
+
+// Weather is the same two-values-at-once shape as Sleep, but the values
+// come from the already-fetched forecast (state.weatherBrief.data) rather
+// than a form field — the footer's Save button only even shows once that
+// fetch has actually succeeded (see renderModal's notReadyToSave).
+function submitWeatherEntry() {
+  const d = state.weatherBrief.data;
+  if (!d) return;
+  const dateStr = state.selectedDate;
+  const now = new Date().toISOString();
+  const conditionValue = d.description;
+  const highTempValue = String(d.high);
+
+  const existingCond = state.dayData.morning.weatherCondition || {};
+  const existingTemp = state.dayData.morning.weatherHighTemp || {};
+  state.dayData.morning.weatherCondition = { ...existingCond, done: true, value: conditionValue, submittedAt: now };
+  state.dayData.morning.weatherHighTemp = { ...existingTemp, done: true, value: highTempValue, submittedAt: now };
+
+  state.modal = null;
+  render();
+
+  beginSync();
+  Promise.all([
+    saveEntry(dateStr, "weatherCondition", conditionValue),
+    saveEntry(dateStr, "weatherHighTemp", highTempValue)
+  ]).then(([s1, s2]) => {
+    const success = s1 && s2;
+    endSync(success);
+    if (success && (!state.maxSheetDate || dateStr > state.maxSheetDate)) {
+      state.maxSheetDate = dateStr;
+    }
+    if (!success && state.needsSheetSetup) {
+      state.showSheetSetup = true;
+      render();
+    }
+  });
+}
+
+// Calendar is a single value (unlike Sleep/Weather), so it goes through
+// the normal saveOptionValue path — it just needs its own function
+// because the value comes from the already-fetched events
+// (state.calendarBrief.events), not a form field. Formatting isn't a
+// priority yet — just "Title (time)" pairs, semicolon-separated.
+function submitCalendarEntry() {
+  const events = state.calendarBrief.events || [];
+  const valueToSave = events.map(function (ev) {
+    const timeLabel = ev.allDay ? "All day" : new Date(ev.start).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+    return ev.summary + " (" + timeLabel + ")";
+  }).join("; ");
+  saveOptionValue(state.modal.section, "calendar", valueToSave, events.length > 0);
+}
+
+function daysInMonth(year, month1based) {
+  return new Date(year, month1based, 0).getDate(); // day 0 of next month = last day of this one
+}
+
+function renderCalendarPopover() {
+  const [viewY, viewM] = state.calendarMonth.split("-").map(Number);
+  const firstDow = new Date(viewY, viewM - 1, 1).getDay(); // 0 = Sunday
+  const numDays = daysInMonth(viewY, viewM);
+  const { logicalDateStr, actualDateStr } = getDateInfo();
+  // Never let a date that's already in the sheet become unreachable just
+  // because the visitor's system clock/timezone shifted and now makes it
+  // look like "the future" locally — allow navigation up through whichever
+  // is later: the real current date, or the furthest date the sheet
+  // actually has a row for.
+  const effectiveMaxDate = state.maxSheetDate && state.maxSheetDate > actualDateStr ? state.maxSheetDate : actualDateStr;
+  const [curY, curM] = effectiveMaxDate.split("-").map(Number);
+  const isAtOrPastCurrentMonth = viewY > curY || (viewY === curY && viewM >= curM);
+
+  var cells = "";
+  for (var i = 0; i < firstDow; i++) cells += "<span class='cal-cell empty'></span>";
+  for (var d = 1; d <= numDays; d++) {
+    const cellDateStr = viewY + "-" + String(viewM).padStart(2, "0") + "-" + String(d).padStart(2, "0");
+    const isFuture = cellDateStr > effectiveMaxDate;
+    const isSelected = cellDateStr === state.selectedDate;
+    const isToday = cellDateStr === logicalDateStr;
+    cells += "<button type='button' class='cal-cell " + (isSelected ? "selected" : "") + " " + (isToday ? "is-today" : "") + "'" +
+      (isFuture ? " disabled" : "") + " onclick='event.stopPropagation(); selectCalendarDate(\"" + cellDateStr + "\")'>" + d + "</button>";
+  }
+
+  const monthLabel = new Date(viewY, viewM - 1, 1).toLocaleDateString(undefined, { month: "long", year: "numeric" });
+
+  var html = "";
+  html += "<div class='calendar-popover' onclick='event.stopPropagation()'>";
+  html += "<div class='cal-header'>";
+  html += "<button type='button' class='cal-nav' onclick='event.stopPropagation(); shiftCalendarMonth(-1)' aria-label='Previous month'>" + icon("<path d='M15 6l-6 6 6 6'/>") + "</button>";
+  html += "<span class='cal-month-label'>" + monthLabel + "</span>";
+  html += "<button type='button' class='cal-nav'" + (isAtOrPastCurrentMonth ? " disabled" : "") + " onclick='event.stopPropagation(); shiftCalendarMonth(1)' aria-label='Next month'>" + icon("<path d='M9 6l6 6-6 6'/>") + "</button>";
+  html += "</div>";
+  html += "<div class='cal-weekdays'><span>S</span><span>M</span><span>T</span><span>W</span><span>T</span><span>F</span><span>S</span></div>";
+  html += "<div class='cal-grid'>" + cells + "</div>";
+  html += "<button type='button' class='cal-today-link' onclick='event.stopPropagation(); jumpCalendarToday()'>Jump to today</button>";
+  html += "</div>";
+  return html;
+}
+
+function toggleCalendar(evt) {
+  evt.stopPropagation();
+  state.calendarOpen = !state.calendarOpen;
+  if (state.calendarOpen) state.calendarMonth = state.selectedDate.slice(0, 7);
+  render();
+}
+
+function shiftCalendarMonth(delta) {
+  let [y, m] = state.calendarMonth.split("-").map(Number);
+  m += delta;
+  if (m < 1) { m = 12; y -= 1; } else if (m > 12) { m = 1; y += 1; }
+  state.calendarMonth = y + "-" + String(m).padStart(2, "0");
+  render();
+}
+
+// Switches the visible date immediately (no waiting on storage) and loads
+// that day's data in the background, same optimistic pattern as saves —
+// the small pill at the bottom shows "Loading…" while it fetches. Guards
+// against a race if you tap another date again before the fetch lands.
+async function switchToDate(dateStr) {
+  state.selectedDate = dateStr;
+  state.dayData = { morning: {}, evening: {} }; // clear stale checkmarks instantly
+  render();
+  beginSync("Loading…");
+  const data = await loadDay(dateStr);
+  endSync(true);
+  if (state.selectedDate === dateStr) {
+    state.dayData = data;
+    render();
+  }
+}
+
+async function selectCalendarDate(dateStr) {
+  state.calendarOpen = false;
+  await switchToDate(dateStr);
+}
+
+async function jumpCalendarToday() {
+  const { logicalDateStr } = getDateInfo();
+  state.calendarMonth = logicalDateStr.slice(0, 7);
+  state.calendarOpen = false;
+  await switchToDate(logicalDateStr);
+}
+
+// Clicking anywhere outside the popover closes it. Everything inside the
+// popover (and the date button that opens it) stops propagation, so this
+// only ever fires for genuine outside clicks.
+document.addEventListener("click", () => {
+  if (state.calendarOpen) {
+    state.calendarOpen = false;
+    render();
+  }
+});
+
+async function goToday(evt) {
+  if (evt) evt.stopPropagation();
+  const { logicalDateStr } = getDateInfo();
+  await switchToDate(logicalDateStr);
+}
+
+// ---------- Init ----------
+(async function init() {
+  // Default landing date respects the 6am cutoff (logical day). The
+  // date input's own max (set in renderHome) uses the true calendar
+  // date, so you can still manually jump ahead early if you want to.
+  const { logicalDateStr } = getDateInfo();
+  state.selectedDate = logicalDateStr;
+
+  updateVVH();
+  try {
+    // One combined round-trip instead of two — the server opens the
+    // spreadsheet (and checks Drive trash status) exactly once and hands
+    // back both the link status and today's data together.
+    const initial = await runServer("getInitialData", logicalDateStr);
+    state.spreadsheetUrl = initial.spreadsheetUrl;
+    state.needsSheetSetup = !initial.spreadsheetUrl;
+    state.dayData = initial.dayData;
+    state.maxSheetDate = initial.maxSheetDate;
+  } catch (e) {
+    console.error("Could not load initial data", e);
+  }
+  render();
+  if (state.needsSheetSetup) openSheetSetup();
+})();
+</script>
+</body>
+</html>
